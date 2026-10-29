@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" class="js">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06070d">
+<title>Stats — Team Quantum Gaming</title>
+<meta name="description" content="Team Quantum Gaming statistics — computed from recorded matches.">
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.classList.remove('js');</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html">Team <b>Quantum</b> Gaming</a>
+    <button class="burger" aria-expanded="false" aria-controls="navlinks" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links" id="navlinks">
+      <a href="index.html">Dashboard</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="roster.html">Roster</a>
+      <a href="matches.html">Matches</a>
+      <a href="stats.html" aria-current="page">Stats</a>
+      <a href="recruitment.html">Recruitment</a>
+      <a href="admin.html" class="nav-cta">Admin</a>
+    </div>
+  </div>
+</nav>
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> Recorded → computed</span>
+      <h1>Statistics</h1>
+      <p class="subhead">Computed only from recorded match data. Missing data is never treated as zero unless that is its meaning.</p>
+    </div>
+  </section>
+  <section>
+    <div class="wrap">
+      <div class="grid grid-4" id="statCards">
+        <div class="card empty"><div class="big">📊</div><h4>No data</h4><p>Stats appear once matches are recorded.</p></div>
+      </div>
+    </div>
+  </section>
+  <section>
+    <div class="wrap">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Player</th><th>Matches</th><th>Kills</th><th>Avg kills</th><th>Avg placement</th><th>Best placement</th></tr></thead>
+          <tbody id="playerStats"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:36px">No player statistics yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  <div class="wrap">
+    <span>Team Quantum Gaming · Free Fire MAX</span>
+    <span>© <span data-role="year"></span> nightforgeio</span>
+  </div>
+</footer>
+<nav class="mobilebar" aria-label="Mobile actions">
+  <a href="matches.html">Matches</a>
+  <a href="index.html" style="background:var(--lime);color:#000">Dashboard</a>
+</nav>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/stats.js"></script>
+</body>
+</html>

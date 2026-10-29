@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" class="js">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06070d">
+<title>Admin — Team Quantum Gaming</title>
+<meta name="description" content="Team Quantum Gaming admin console — protected.">
+<link rel="stylesheet" href="css/style.css">
+<script>document.documentElement.classList.remove('js');</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<nav class="nav" aria-label="Main">
+  <div class="wrap nav-inner">
+    <a class="brand" href="index.html">Team <b>Quantum</b> Gaming</a>
+    <button class="burger" aria-expanded="false" aria-controls="navlinks" aria-label="Menu"><span></span><span></span><span></span></button>
+    <div class="nav-links" id="navlinks">
+      <a href="index.html">Dashboard</a>
+      <a href="roadmap.html">Roadmap</a>
+      <a href="roster.html">Roster</a>
+      <a href="matches.html">Matches</a>
+      <a href="stats.html">Stats</a>
+      <a href="recruitment.html">Recruitment</a>
+      <a href="admin.html" class="nav-cta" aria-current="page">Admin</a>
+    </div>
+  </div>
+</nav>
+<main id="main">
+  <section class="hero">
+    <div class="wrap">
+      <span class="eyebrow"><span class="dot"></span> Protected</span>
+      <h1>Admin Console</h1>
+      <p class="subhead">Manage roadmap, roster, recruitment, practice, matches, and announcements. Writes are enforced by the backend — not by hiding buttons.</p>
+    </div>
+  </section>
+
+  <!-- Auth gate -->
+  <section id="authGate">
+    <div class="wrap">
+      <div class="card" style="max-width:420px;margin-inline:auto">
+        <h3>Sign in</h3>
+        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn block" id="loginBtn">Sign in</button>
+        <p class="err" id="authErr" style="display:none;margin-top:10px"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Console -->
+  <section id="console" style="display:none">
+    <div class="wrap">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+        <div>
+          <h2 style="font-size:22px;font-weight:700;letter-spacing:-.02em">Console</h2>
+          <p style="color:var(--muted);font-size:13px" id="whoami"></p>
+        </div>
+        <button class="btn ghost" id="logoutBtn">Sign out</button>
+      </div>
+
+      <div class="grid grid-2">
+        <div class="card">
+          <h3>Roster</h3>
+          <div class="field"><label for="p_ign">IGN</label><input id="p_ign"></div>
+          <div class="field"><label for="p_role">Role</label>
+            <select id="p_role"><option>IGL</option><option>Rusher</option><option>Supporter</option><option>Sniper</option><option>Fragger</option></select>
+          </div>
+          <div class="field"><label for="p_status">Status</label>
+            <select id="p_status"><option value="active">Active</option><option value="substitute">Substitute</option><option value="trial">Trial</option><option value="inactive">Inactive</option></select>
+          </div>
+          <button class="btn" id="addPlayer">Add player</button>
+        </div>
+
+        <div class="card">
+          <h3>Announcement</h3>
+          <div class="field"><label for="a_title">Title</label><input id="a_title"></div>
+          <div class="field"><label for="a_body">Body</label><textarea id="a_body" rows="3"></textarea></div>
+          <button class="btn" id="addAnn">Publish</button>
+        </div>
+
+        <div class="card">
+          <h3>Match</h3>
+          <div class="field"><label for="m_date">Date</label><input id="m_date" type="date"></div>
+          <div class="field"><label for="m_type">Type</label>
+            <select id="m_type"><option value="squad">Squad</option><option value="solo">Solo</option><option value="practice">Practice</option><option value="scrim">Scrim</option></select>
+          </div>
+          <div class="field"><label for="m_opponent">Opponent</label><input id="m_opponent"></div>
+          <div class="field"><label for="m_placement">Placement</label><input id="m_placement" type="number"></div>
+          <div class="field"><label for="m_kills">Kills</label><input id="m_kills" type="number"></div>
+          <button class="btn" id="addMatch">Record match</button>
+        </div>
+
+        <div class="card">
+          <h3>Recruitment candidate (private)</h3>
+          <div class="field"><label for="r_ign">IGN</label><input id="r_ign"></div>
+          <div class="field"><label for="r_role">Target role</label>
+            <select id="r_role"><option>Rusher</option><option>Supporter</option></select>
+          </div>
+          <div class="field"><label for="r_notes">Evaluation notes</label><textarea id="r_notes" rows="3"></textarea></div>
+          <button class="btn" id="addRec">Add candidate</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="js/admin.js"></script>
+</body>
+</html>
