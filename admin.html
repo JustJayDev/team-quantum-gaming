@@ -39,9 +39,9 @@
   <section id="authGate">
     <div class="wrap">
       <div class="card" style="max-width:420px;margin-inline:auto">
-        <h3>Sign in</h3>
-        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
-        <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+        <h3>Admin token</h3>
+        <p style="color:var(--muted);font-size:13px">Enter the admin token set on the Cloudflare Worker. It is sent only to the Worker, never stored in code.</p>
+        <div class="field"><label for="tokenInput">Token</label><input id="tokenInput" type="password" autocomplete="off" required></div>
         <button class="btn block" id="loginBtn">Sign in</button>
         <p class="err" id="authErr" style="display:none;margin-top:10px"></p>
       </div>
