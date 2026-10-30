@@ -12,6 +12,8 @@ export const TABLE_TO_TAB = {
   matches: 'matches',
   journey: 'journey',
   recruitment: 'recruitment',
+  phases: 'phases',
+  tasks: 'tasks',
 };
 
 // Whitelisted columns per public tab. Unknown fields are rejected.
@@ -20,9 +22,11 @@ const TAB_COLUMNS = {
     'roster_status','join_date','previous_roles','achievements','avatar_url','is_public'],
   announcements: ['id','title','body','published_at','archived'],
   matches: ['id','match_date','match_type','status','opponent','roster','placement','kills',
-    'points','notes','replay_url','is_public'],
-  journey: ['id','date','date_provisional','category','title','description','verified'],
+    'points','notes','replay_url','is_public','archived'],
+  journey: ['id','date','date_provisional','category','title','description','verified','archived'],
   recruitment: ['id','ign','target_role','trial_status','trial_date','decision','is_public','archived'],
+  phases: ['id','phase_no','title','description','status','start_date','end_date','completion_date','archived'],
+  tasks: ['id','phase_id','title','done','completed_at','archived'],
 };
 
 // Private tab — never published. Worker writes here only for private fields.
@@ -37,6 +41,7 @@ const ROSTER_STATUSES = new Set(['active','substitute','trial','former','inactiv
 const JOURNEY_CATEGORIES = new Set(['formation','roster','recruitment','role','practice','roadmap','scrim','achievement']);
 const MATCH_TYPES = new Set(['solo','squad','practice','scrim']);
 const MATCH_STATUSES = new Set(['scheduled','completed','cancelled']);
+const PHASE_STATUSES = new Set(['planned','in_progress','blocked','completed']);
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -102,6 +107,24 @@ export function validateWrite(table, payload) {
   }
   if (table === 'recruitment') {
     if (!payload.ign || typeof payload.ign !== 'string') return { ok: false, error: 'IGN required' };
+  }
+  if (table === 'phases') {
+    if (!payload.title || typeof payload.title !== 'string') return { ok: false, error: 'title required' };
+    if (payload.status && !PHASE_STATUSES.has(payload.status)) {
+      return { ok: false, error: `Invalid phase status: ${payload.status}` };
+    }
+    if (payload.phase_no !== undefined && payload.phase_no !== null && payload.phase_no !== '' && !Number.isFinite(Number(payload.phase_no))) {
+      return { ok: false, error: 'phase_no must be a number' };
+    }
+  }
+  if (table === 'tasks') {
+    if (!payload.title || typeof payload.title !== 'string') return { ok: false, error: 'title required' };
+    if (payload.phase_id === undefined || payload.phase_id === null || payload.phase_id === '') {
+      return { ok: false, error: 'phase_id required' };
+    }
+    if (payload.done !== undefined && typeof payload.done !== 'boolean') {
+      return { ok: false, error: 'done must be a boolean' };
+    }
   }
 
   // Private recruitment fields route to the private tab, never the public one.

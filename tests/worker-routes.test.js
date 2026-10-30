@@ -20,6 +20,10 @@ const sheets = {
   announcements: [['id','title','body','published_at','archived']],
   recruitment: [['id','ign','target_role','trial_status','trial_date','decision','is_public','archived']],
   recruitment_private: [['id','ign','eval_notes','practice_attendance','teamwork_assessment','archived']],
+  phases: [['id','phase_no','title','description','status','start_date','end_date','completion_date','archived']],
+  tasks: [['id','phase_id','title','done','completed_at','archived']],
+  matches: [['id','match_date','match_type','status','opponent','roster','placement','kills','points','notes','replay_url','is_public','archived']],
+  journey: [['id','date','date_provisional','category','title','description','verified','archived']],
 };
 let seq = 100;
 
@@ -266,6 +270,70 @@ console.log('/delete recruitment private archive:');
   ok('recruitment delete without private row → 200', r2.status === 200 && r2.json.ok === true);
   const pubRow = sheets.recruitment.find(rr => rr[0] === id);
   ok('public row still archived', pubRow && pubRow[7] === 'true');
+}
+
+console.log('phases routes:');
+{
+  const r = await run('/write', 'test-token', { table: 'phases', payload: { phase_no: 1, title: 'Foundation', description: 'Setup', status: 'in_progress', start_date: '2026-10-01' } });
+  ok('phase write → 200', r.status === 200 && r.json.ok === true);
+  const id = r.json.id;
+  const row = sheets.phases.find(rr => rr[0] === id);
+  ok('phase appended', row && row[2] === 'Foundation' && row[4] === 'in_progress');
+  const r2 = await run('/update', 'test-token', { table: 'phases', payload: { id, phase_no: 1, title: 'Foundation', status: 'completed' } });
+  ok('phase update → 200', r2.status === 200 && r2.json.ok === true);
+  const row2 = sheets.phases.find(rr => rr[0] === id);
+  ok('phase status updated', row2 && row2[4] === 'completed');
+  const r3 = await run('/delete', 'test-token', { table: 'phases', payload: { id } });
+  ok('phase delete → 200', r3.status === 200 && r3.json.ok === true);
+  ok('phase archived', row2 && row2[8] === 'true');
+}
+console.log('tasks routes:');
+{
+  const rp = await run('/write', 'test-token', { table: 'phases', payload: { phase_no: 2, title: 'Phase 2', status: 'planned' } });
+  const pid = rp.json.id;
+  const r = await run('/write', 'test-token', { table: 'tasks', payload: { phase_id: pid, title: 'Build UI', done: false } });
+  ok('task write → 200', r.status === 200 && r.json.ok === true);
+  const id = r.json.id;
+  const row = sheets.tasks.find(rr => rr[0] === id);
+  ok('task appended with phase_id', row && row[1] === pid && row[2] === 'Build UI' && row[3] === false);
+  const r2 = await run('/update', 'test-token', { table: 'tasks', payload: { id, phase_id: pid, title: 'Build UI', done: true } });
+  ok('task update → 200', r2.status === 200 && r2.json.ok === true);
+  const row2 = sheets.tasks.find(rr => rr[0] === id);
+  ok('task done updated to true', row2 && row2[3] === true);
+  const r3 = await run('/delete', 'test-token', { table: 'tasks', payload: { id } });
+  ok('task delete → 200', r3.status === 200 && r3.json.ok === true);
+  ok('task archived', row2 && row2[5] === 'true');
+}
+console.log('matches/journey delete (archived column):');
+{
+  const r = await run('/write', 'test-token', { table: 'matches', payload: { match_date: '2026-11-05', match_type: 'squad', status: 'scheduled', opponent: 'TeamX', roster: ['Jay'], is_public: true } });
+  const id = r.json.id;
+  const r2 = await run('/delete', 'test-token', { table: 'matches', payload: { id } });
+  ok('match delete → 200', r2.status === 200 && r2.json.ok === true);
+  const row = sheets.matches.find(rr => rr[0] === id);
+  ok('match archived flag set', row && row[12] === 'true');
+}
+{
+  const r = await run('/write', 'test-token', { table: 'journey', payload: { date: '2026-10-20', category: 'formation', title: 'Team formed', verified: false } });
+  const id = r.json.id;
+  const r2 = await run('/delete', 'test-token', { table: 'journey', payload: { id } });
+  ok('journey delete → 200', r2.status === 200 && r2.json.ok === true);
+  const row = sheets.journey.find(rr => rr[0] === id);
+  ok('journey archived flag set', row && row[7] === 'true');
+}
+
+console.log('phase/task validation rejects:');
+{
+  const r = await run('/write', 'test-token', { table: 'phases', payload: { title: 'P', status: 'done' } });
+  ok('invalid phase status → 400', r.status === 400 && r.json.error.includes('Invalid phase status'));
+}
+{
+  const r = await run('/write', 'test-token', { table: 'tasks', payload: { title: 'T' } });
+  ok('task missing phase_id → 400', r.status === 400 && r.json.error.includes('phase_id required'));
+}
+{
+  const r = await run('/write', 'test-token', { table: 'tasks', payload: { phase_id: 'x', title: 'T', done: 'yes' } });
+  ok('task done not boolean → 400', r.status === 400 && r.json.error.includes('done must be a boolean'));
 }
 
 console.log('/apply (public, no token):');

@@ -5,6 +5,7 @@
 // No write secret lives in this file or any frontend code.
 // ============================================================
 import { WORKER_URL, WORKER_PATH_WRITE, WORKER_PATH_UPDATE, WORKER_PATH_DELETE } from './config.js';
+import { api } from './api.js';
 
 const $ = id => document.getElementById(id);
 const authGate = $('authGate'), consoleSection = $('console');
@@ -102,7 +103,7 @@ bind('addMatch', async () => {
   const date = $('m_date').value, type = $('m_type').value;
   if (!date) { toast('Date required', true); return; }
   await call(WORKER_PATH_WRITE, 'matches', {
-    match_date: date, match_type: type,
+    match_date: date, match_type: type, status: $('m_status').value,
     opponent: $('m_opponent').value.trim() || '',
     placement: $('m_placement').value ? +$('m_placement').value : '',
     kills: $('m_kills').value ? +$('m_kills').value : '',
@@ -128,6 +129,67 @@ bind('addRec', async () => {
   $('r_ign').value = ''; $('r_notes').value = ''; toast('Candidate added');
 });
 
+// --- Recruitment approve (set decision=approved + trial_status=active, expose publicly) ---
+bind('approveRec', async () => {
+  const id = $('r_approve').value.trim();
+  if (!id) { toast('Candidate id required', true); return; }
+  // Resolve the candidate row from the public sheet so we can pass the
+  // full validated payload back through the Worker's /update route.
+  let cand;
+  try { cand = (await api.recruitment()).find(r => r.id === id); }
+  catch { toast('Could not read sheet for candidate', true); return; }
+  if (!cand) { toast('Candidate not found in sheet', true); return; }
+  await call(WORKER_PATH_UPDATE, 'recruitment', {
+    id,
+    ign: cand.ign,
+    target_role: cand.target_role || '',
+    trial_status: 'active',
+    decision: 'approved',
+    is_public: true,
+  });
+  $('r_approve').value = ''; toast('Candidate approved');
+});
+
+// --- Journey ---
+bind('addJourney', async () => {
+  const date = $('j_date').value, title = $('j_title').value.trim();
+  if (!date || !title) { toast('Date and title required', true); return; }
+  await call(WORKER_PATH_WRITE, 'journey', {
+    date,
+    category: $('j_cat').value,
+    title,
+    description: $('j_desc').value.trim(),
+    verified: $('j_verified').value === 'true',
+  });
+  ['j_date','j_title','j_desc'].forEach(id => $(id).value = '');
+  toast('Milestone added');
+});
+
+// --- Phases ---
+bind('addPhase', async () => {
+  const title = $('ph_title').value.trim();
+  if (!title) { toast('Phase title required', true); return; }
+  await call(WORKER_PATH_WRITE, 'phases', {
+    phase_no: $('ph_no').value ? +$('ph_no').value : '',
+    title,
+    description: $('ph_desc').value.trim(),
+    status: $('ph_status').value,
+    start_date: '', end_date: '', completion_date: '',
+  });
+  ['ph_no','ph_title','ph_desc'].forEach(id => $(id).value = '');
+  toast('Phase added');
+});
+
+// --- Tasks ---
+bind('addTask', async () => {
+  const phaseId = $('t_phase').value.trim(), title = $('t_title').value.trim();
+  if (!phaseId || !title) { toast('Phase id and title required', true); return; }
+  await call(WORKER_PATH_WRITE, 'tasks', {
+    phase_id: phaseId, title, done: $('t_done').value === 'true', completed_at: '',
+  });
+  $('t_phase').value = ''; $('t_title').value = ''; toast('Task added');
+});
+
 // --- Soft-delete examples (roster/announcements) ---
 bind('deletePlayer', async () => {
   const id = $('del_player_id').value.trim();
@@ -140,6 +202,30 @@ bind('deleteAnn', async () => {
   if (!id) { toast('Announcement id required', true); return; }
   await call(WORKER_PATH_DELETE, 'announcements', { id });
   $('del_ann_id').value = ''; toast('Announcement archived');
+});
+bind('deleteMatch', async () => {
+  const id = $('del_match_id').value.trim();
+  if (!id) { toast('Match id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'matches', { id });
+  $('del_match_id').value = ''; toast('Match archived');
+});
+bind('deletePhase', async () => {
+  const id = $('del_phase_id').value.trim();
+  if (!id) { toast('Phase id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'phases', { id });
+  $('del_phase_id').value = ''; toast('Phase archived');
+});
+bind('deleteTask', async () => {
+  const id = $('del_task_id').value.trim();
+  if (!id) { toast('Task id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'tasks', { id });
+  $('del_task_id').value = ''; toast('Task archived');
+});
+bind('deleteJourney', async () => {
+  const id = $('del_journey_id').value.trim();
+  if (!id) { toast('Journey id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'journey', { id });
+  $('del_journey_id').value = ''; toast('Milestone archived');
 });
 
 // Restore session on load

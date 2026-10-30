@@ -91,6 +91,9 @@
           <div class="field"><label for="m_type">Type</label>
             <select id="m_type"><option value="squad">Squad</option><option value="solo">Solo</option><option value="practice">Practice</option><option value="scrim">Scrim</option></select>
           </div>
+          <div class="field"><label for="m_status">Status</label>
+            <select id="m_status"><option value="scheduled">Scheduled</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select>
+          </div>
           <div class="field"><label for="m_opponent">Opponent</label><input id="m_opponent"></div>
           <div class="field"><label for="m_placement">Placement</label><input id="m_placement" type="number"></div>
           <div class="field"><label for="m_kills">Kills</label><input id="m_kills" type="number"></div>
@@ -98,22 +101,84 @@
         </div>
 
         <div class="card">
+          <h3>Journey milestone</h3>
+          <div class="field"><label for="j_date">Date</label><input id="j_date" type="date"></div>
+          <div class="field"><label for="j_cat">Category</label>
+            <select id="j_cat"><option value="formation">Formation</option><option value="roster">Roster</option><option value="recruitment">Recruitment</option><option value="role">Role</option><option value="practice">Practice</option><option value="roadmap">Roadmap</option><option value="scrim">Scrim</option><option value="achievement">Achievement</option></select>
+          </div>
+          <div class="field"><label for="j_title">Title</label><input id="j_title"></div>
+          <div class="field"><label for="j_desc">Description</label><textarea id="j_desc" rows="2"></textarea></div>
+          <div class="field"><label for="j_verified">Verified</label>
+            <select id="j_verified"><option value="false">No</option><option value="true">Yes</option></select>
+          </div>
+          <button class="btn" id="addJourney">Add milestone</button>
+        </div>
+
+        <div class="card">
+          <h3>Phase (roadmap)</h3>
+          <div class="field"><label for="ph_no">Phase #</label><input id="ph_no" type="number" min="1"></div>
+          <div class="field"><label for="ph_title">Title</label><input id="ph_title"></div>
+          <div class="field"><label for="ph_desc">Description</label><textarea id="ph_desc" rows="2"></textarea></div>
+          <div class="field"><label for="ph_status">Status</label>
+            <select id="ph_status"><option value="planned">Planned</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="completed">Completed</option></select>
+          </div>
+          <button class="btn" id="addPhase">Add phase</button>
+        </div>
+
+        <div class="card">
+          <h3>Task (under a phase)</h3>
+          <div class="field"><label for="t_phase">Phase id</label><input id="t_phase" placeholder="ab12cd34"></div>
+          <div class="field"><label for="t_title">Title</label><input id="t_title"></div>
+          <div class="field"><label for="t_done">Done</label>
+            <select id="t_done"><option value="false">No</option><option value="true">Yes</option></select>
+          </div>
+          <button class="btn" id="addTask">Add task</button>
+        </div>
+
+        <div class="card">
           <h3>Recruitment candidate (private)</h3>
           <div class="field"><label for="r_ign">IGN</label><input id="r_ign"></div>
           <div class="field"><label for="r_role">Target role</label>
-            <select id="r_role"><option>Rusher</option><option>Supporter</option></select>
+            <select id="r_role"><option>Rusher</option><option>Supporter</option><option>IGL</option><option>Sniper</option><option>Fragger</option><option>Secondary</option></select>
           </div>
           <div class="field"><label for="r_notes">Evaluation notes</label><textarea id="r_notes" rows="3"></textarea></div>
           <button class="btn" id="addRec">Add candidate</button>
+          <div class="field" style="margin-top:18px;border-top:1px solid var(--line);padding-top:16px">
+            <label for="r_approve">Approve candidate (by id)</label>
+            <input id="r_approve" placeholder="ab12cd34">
+          </div>
+          <button class="btn ghost" id="approveRec">Approve candidate</button>
         </div>
       </div>
 
       <div class="card" style="margin-top:20px">
         <h3>Soft-delete (archive)</h3>
-        <div class="field"><label for="del_player_id">Player id to archive</label><input id="del_player_id" placeholder="ab12cd34"></div>
-        <button class="btn ghost" id="deletePlayer">Archive player</button>
-        <div class="field" style="margin-top:16px"><label for="del_ann_id">Announcement id to archive</label><input id="del_ann_id" placeholder="ef56gh78"></div>
-        <button class="btn ghost" id="deleteAnn">Archive announcement</button>
+        <div class="grid grid-2">
+          <div>
+            <div class="field"><label for="del_player_id">Player id</label><input id="del_player_id" placeholder="ab12cd34"></div>
+            <button class="btn ghost" id="deletePlayer">Archive player</button>
+          </div>
+          <div>
+            <div class="field"><label for="del_ann_id">Announcement id</label><input id="del_ann_id" placeholder="ef56gh78"></div>
+            <button class="btn ghost" id="deleteAnn">Archive announcement</button>
+          </div>
+          <div>
+            <div class="field"><label for="del_match_id">Match id</label><input id="del_match_id" placeholder="a1b2c3d4"></div>
+            <button class="btn ghost" id="deleteMatch">Archive match</button>
+          </div>
+          <div>
+            <div class="field"><label for="del_phase_id">Phase id</label><input id="del_phase_id" placeholder="a1b2c3d4"></div>
+            <button class="btn ghost" id="deletePhase">Archive phase</button>
+          </div>
+          <div>
+            <div class="field"><label for="del_task_id">Task id</label><input id="del_task_id" placeholder="a1b2c3d4"></div>
+            <button class="btn ghost" id="deleteTask">Archive task</button>
+          </div>
+          <div>
+            <div class="field"><label for="del_journey_id">Journey id</label><input id="del_journey_id" placeholder="a1b2c3d4"></div>
+            <button class="btn ghost" id="deleteJourney">Archive milestone</button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
