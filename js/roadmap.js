@@ -1,8 +1,7 @@
 import { api, phaseProgress, fmtDate } from './api.js';
+import { statusPillClass, statusLabel, sortPhases, hasNoTasks } from './roadmap-helpers.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'"',"'":'&#39;' }[c]));
-const statusPill = s => ({ planned:'grey', in_progress:'cyan', completed:'lime', delayed:'red' }[s] || 'grey');
-const phaseOrder = { planned:0, in_progress:1, completed:2, delayed:3 };
 
 async function init() {
   document.querySelector('[data-role="year"]').textContent = new Date().getFullYear();
@@ -15,27 +14,30 @@ async function init() {
   const list = document.querySelector('#roadmapList');
   if (!phases.length) { list.innerHTML = '<div class="card empty"><div class="big">🗺️</div><h4>No phases yet</h4><p>Roadmap phases will appear here.</p></div>'; return; }
 
-  const sorted = [...phases].sort((a,b) => phaseOrder[a.status] - phaseOrder[b.status] || a.phase_no - b.phase_no);
+  const sorted = sortPhases(phases);
   list.innerHTML = sorted.map(p => {
     const pct = phaseProgress(tasks, p.id);
     const phaseTasks = tasks.filter(t => t.phase_id === p.id);
+    const noTasks = hasNoTasks(p, tasks);
     return `
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
         <div>
           <h3 style="font-size:18px">${esc(p.title)}</h3>
-          <p style="color:var(--muted);font-size:13px;margin-top:4px">Phase ${p.phase_no} · ${esc(p.status)}</p>
+          <p style="color:var(--muted);font-size:13px;margin-top:4px">Phase ${p.phase_no} · ${esc(statusLabel(p.status))}</p>
         </div>
-        <span class="pill ${statusPill(p.status)}">${esc(p.status)}</span>
+        <span class="pill ${statusPillClass(p.status)}">${esc(statusLabel(p.status))}</span>
       </div>
       ${p.description ? `<p style="color:var(--fg-2);font-size:14px;margin-top:10px">${esc(p.description)}</p>` : ''}
+      ${!noTasks ? `
       <div style="margin-top:16px">
         <div class="progress-label"><span>Progress</span><b>${pct}%</b></div>
         <div class="progress"><i style="width:${pct}%"></i></div>
-      </div>
+      </div>` : `
+      <p style="color:var(--muted);font-size:13px;margin-top:14px">Tasks for this phase are not recorded yet — no progress is computed.</p>`}
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:var(--muted)">
-        <span>Start: ${fmtDate(p.start_date)}</span>
-        <span>End: ${fmtDate(p.end_date)}</span>
+        ${p.start_date ? `<span>Start: ${fmtDate(p.start_date)}</span>` : ''}
+        ${p.end_date ? `<span>End: ${fmtDate(p.end_date)}</span>` : ''}
         ${p.completion_date ? `<span>Completed: ${fmtDate(p.completion_date)}</span>` : ''}
       </div>
       ${phaseTasks.length ? `
