@@ -22,12 +22,14 @@ const TAB_COLUMNS = {
   matches: ['id','match_date','match_type','opponent','roster','placement','kills',
     'points','notes','replay_url','is_public'],
   journey: ['id','date','date_provisional','category','title','description','verified'],
-  recruitment: ['id','ign','target_role','trial_status','trial_date','decision','is_public'],
+  recruitment: ['id','ign','target_role','trial_status','trial_date','decision','is_public','archived'],
 };
 
 // Private tab — never published. Worker writes here only for private fields.
+// Includes `archived` so deleting a candidate can archive the private row
+// while preserving the private data (it is never exposed publicly).
 const PRIVATE_TAB = 'recruitment_private';
-const PRIVATE_COLUMNS = ['id','ign','eval_notes','practice_attendance','teamwork_assessment'];
+const PRIVATE_COLUMNS = ['id','ign','eval_notes','practice_attendance','teamwork_assessment','archived'];
 
 // Vocabulary.
 const ROLES = new Set(['IGL','Rusher','Supporter','Sniper','Fragger','Secondary']);

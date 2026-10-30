@@ -125,6 +125,32 @@ export default {
         } else {
           return badRequest('tab does not support soft-delete (no archived column)');
         }
+        // Recruitment: also archive the matching private row (if one exists).
+        // The private tab has an `archived` column (see PRIVATE_COLUMNS), so we
+        // set it to 'true' — the private data is preserved but marked archived,
+        // never exposed publicly. Missing private row is not an error: some
+        // candidates have no private record.
+        if (table === 'recruitment') {
+          try {
+            const pRows = await readTab(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB);
+            const pH = pRows[0] || [];
+            const pIdIdx = pH.indexOf('id');
+            const pArchivedIdx = pH.indexOf('archived');
+            let pFound = -1;
+            for (let i = 1; i < pRows.length; i++) {
+              if (pRows[i][pIdIdx] === payload.id) { pFound = i + 1; break; }
+            }
+            if (pFound > 0 && pArchivedIdx >= 0) {
+              const pCur = pRows[pFound - 1].slice();
+              pCur[pArchivedIdx] = 'true';
+              await updateRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB, pFound, pCur);
+            }
+          } catch (e) {
+            // Private archive failure must not fail the public delete or leak
+            // private data into the response. Surface it in the log only.
+            console.warn('recruitment private archive skipped: ' + e.message);
+          }
+        }
         return json(null, 200, { ok: true, id: payload.id });
       } catch (e) {
         return json(null, 502, { error: 'delete failed: ' + e.message });

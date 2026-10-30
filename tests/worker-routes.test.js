@@ -18,8 +18,8 @@ const sheets = {
   // headers must match TAB_COLUMNS.players (12) + archived
   players: [['id','ign','display_name','primary_role','secondary_roles','temporary_roles','roster_status','join_date','previous_roles','achievements','avatar_url','is_public','archived']],
   announcements: [['id','title','body','published_at','archived']],
-  recruitment: [['id','ign','target_role','trial_status','trial_date','decision','is_public']],
-  recruitment_private: [['id','ign','eval_notes','practice_attendance','teamwork_assessment']],
+  recruitment: [['id','ign','target_role','trial_status','trial_date','decision','is_public','archived']],
+  recruitment_private: [['id','ign','eval_notes','practice_attendance','teamwork_assessment','archived']],
 };
 let seq = 100;
 
@@ -31,6 +31,9 @@ function tabFromUrl(u) {
 }
 
 // Mock global fetch: OAuth token + Sheets API.
+// `sheetsFail` — when set, the next Google Sheets call fails with the given
+// status. Used to exercise the worker's 502 error paths.
+let sheetsFail = null;
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -38,6 +41,10 @@ globalThis.fetch = async (url, opts = {}) => {
     return { ok: true, status: 200, json: async () => ({ access_token: 'FAKE_TOKEN' }) };
   }
   if (u.includes('sheets.googleapis.com/v4/spreadsheets')) {
+    if (sheetsFail) {
+      const s = sheetsFail; sheetsFail = null;
+      return { ok: false, status: s, json: async () => ({ error: 'sheets down' }) };
+    }
     const tab = tabFromUrl(u);
     if (opts.method === 'POST' && /append/.test(u)) {
       const body = JSON.parse(opts.body);
@@ -162,6 +169,82 @@ console.log('/delete:');
 {
   const r = await run('/delete', 'test-token', { table: 'players', payload: { id: 'nope' } });
   ok('unknown id → 400', r.status === 400 && r.json.error.includes('not found'));
+}
+
+console.log('/update private-field routing (append + combined):');
+{
+  // Write a recruitment candidate with NO private fields initially.
+  const r = await run('/write', 'test-token', { table: 'recruitment', payload: { ign: 'TQG.ZYOTO', target_role: 'Rusher', trial_status: 'pending', is_public: false } });
+  const id = r.json.id;
+  ok('recruitment write (no private) → 200', r.status === 200 && r.json.ok === true);
+  const privBefore = sheets.recruitment_private.find(rr => rr[0] === id);
+  ok('no private row exists yet', !privBefore);
+  // Update with private fields — must APPEND a private row.
+  const r2 = await run('/update', 'test-token', { table: 'recruitment', payload: { id, ign: 'TQG.ZYOTO', target_role: 'Rusher', eval_notes: 'strong aim', practice_attendance: '4/5', teamwork_assessment: 'good' } });
+  ok('update appends private row → 200', r2.status === 200 && r2.json.ok === true);
+  const privAfter = sheets.recruitment_private.find(rr => rr[0] === id);
+  ok('private row appended with values', privAfter && privAfter[2] === 'strong aim' && privAfter[3] === '4/5' && privAfter[4] === 'good');
+  ok('private row archived empty on create', privAfter && (privAfter[5] === '' || privAfter[5] === undefined));
+}
+{
+  // Update BOTH public and private recruitment fields in one request.
+  const r = await run('/write', 'test-token', { table: 'recruitment', payload: { ign: 'TQG.SCOP07', target_role: 'Sniper', trial_status: 'active', eval_notes: 'old notes', is_public: true } });
+  const id = r.json.id;
+  const r2 = await run('/update', 'test-token', { table: 'recruitment', payload: { id, ign: 'TQG.SCOP07', target_role: 'Sniper', decision: 'approved', eval_notes: 'updated notes' } });
+  ok('combined update → 200', r2.status === 200 && r2.json.ok === true);
+  const pubRow = sheets.recruitment.find(rr => rr[0] === id);
+  ok('public decision updated', pubRow && pubRow[5] === 'approved');
+  const privRow = sheets.recruitment_private.find(rr => rr[0] === id);
+  ok('private eval_notes updated', privRow && privRow[2] === 'updated notes');
+}
+{
+  // Update private field on a candidate whose private row exists (update, not append).
+  const r = await run('/write', 'test-token', { table: 'recruitment', payload: { ign: 'R1', target_role: 'Supporter', trial_status: 'pending', eval_notes: 'first', practice_attendance: '1/3', is_public: true } });
+  const id = r.json.id;
+  const r2 = await run('/update', 'test-token', { table: 'recruitment', payload: { id, ign: 'R1', target_role: 'Supporter', eval_notes: 'second' } });
+  ok('update existing private row → 200', r2.status === 200 && r2.json.ok === true);
+  const privRow = sheets.recruitment_private.find(rr => rr[0] === id);
+  ok('private row updated in place', privRow && privRow[2] === 'second');
+  ok('other private fields preserved', privRow && privRow[3] === '1/3');
+}
+
+console.log('Sheets API failures:');
+{
+  const r = await run('/write', 'test-token', { table: 'players', payload: { ign: 'X', roster_status: 'active', is_public: true } });
+  const id = r.json.id;
+  sheetsFail = 503;
+  const r2 = await run('/update', 'test-token', { table: 'players', payload: { id, ign: 'X', primary_role: 'IGL' } });
+  ok('update on sheets failure → 502', r2.status === 502 && r2.json.error.includes('update failed'));
+}
+{
+  const r = await run('/write', 'test-token', { table: 'announcements', payload: { title: 'T', body: 'B', published_at: '2026-10-01' } });
+  const id = r.json.id;
+  sheetsFail = 500;
+  const r2 = await run('/delete', 'test-token', { table: 'announcements', payload: { id } });
+  ok('delete on sheets failure → 502', r2.status === 502 && r2.json.error.includes('delete failed'));
+}
+
+console.log('/delete recruitment private archive:');
+{
+  // Candidate WITH a private record → both public and private get archived.
+  const r = await run('/write', 'test-token', { table: 'recruitment', payload: { ign: 'DEL1', target_role: 'Rusher', trial_status: 'active', eval_notes: 'keep secret', practice_attendance: '2/3', is_public: false } });
+  const id = r.json.id;
+  const r2 = await run('/delete', 'test-token', { table: 'recruitment', payload: { id } });
+  ok('recruitment delete → 200', r2.status === 200 && r2.json.ok === true);
+  const pubRow = sheets.recruitment.find(rr => rr[0] === id);
+  ok('public row archived', pubRow && pubRow[7] === 'true');
+  const privRow = sheets.recruitment_private.find(rr => rr[0] === id);
+  ok('private row archived', privRow && privRow[5] === 'true');
+  ok('private data preserved (not leaked/cleared)', privRow && privRow[2] === 'keep secret' && privRow[3] === '2/3');
+}
+{
+  // Candidate WITHOUT a private record → delete must still succeed.
+  const r = await run('/write', 'test-token', { table: 'recruitment', payload: { ign: 'DEL2', target_role: 'Sniper', trial_status: 'pending', is_public: true } });
+  const id = r.json.id;
+  const r2 = await run('/delete', 'test-token', { table: 'recruitment', payload: { id } });
+  ok('recruitment delete without private row → 200', r2.status === 200 && r2.json.ok === true);
+  const pubRow = sheets.recruitment.find(rr => rr[0] === id);
+  ok('public row still archived', pubRow && pubRow[7] === 'true');
 }
 
 console.log('route fallthrough:');

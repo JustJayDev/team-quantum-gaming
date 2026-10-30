@@ -15,8 +15,8 @@ export const SHEET_TABS = {
   matches:        "matches",        // id, match_date, match_type, opponent, roster, placement, kills, points, notes, replay_url
   announcements:  "announcements",  // id, title, body, published_at, archived
   journey:        "journey",        // id, date, date_provisional, category, title, description, verified
-  recruitment:    "recruitment",    // PUBLIC: id, ign, target_role, trial_status, trial_date, decision
-  recruitmentPrivate: "recruitment_private", // PRIVATE — never published. id, ign, eval_notes, practice_attendance, teamwork_assessment
+  recruitment:    "recruitment",    // PUBLIC: id, ign, target_role, trial_status, trial_date, decision, is_public, archived
+  recruitmentPrivate: "recruitment_private", // PRIVATE — never published. id, ign, eval_notes, practice_attendance, teamwork_assessment, archived
 };
 
 // Role vocabulary (enforced server-side in worker/validate.js).
