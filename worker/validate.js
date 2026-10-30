@@ -19,7 +19,7 @@ const TAB_COLUMNS = {
   players: ['id','ign','display_name','primary_role','secondary_roles','temporary_roles',
     'roster_status','join_date','previous_roles','achievements','avatar_url','is_public'],
   announcements: ['id','title','body','published_at','archived'],
-  matches: ['id','match_date','match_type','opponent','roster','placement','kills',
+  matches: ['id','match_date','match_type','status','opponent','roster','placement','kills',
     'points','notes','replay_url','is_public'],
   journey: ['id','date','date_provisional','category','title','description','verified'],
   recruitment: ['id','ign','target_role','trial_status','trial_date','decision','is_public','archived'],
@@ -36,6 +36,7 @@ const ROLES = new Set(['IGL','Rusher','Supporter','Sniper','Fragger','Secondary'
 const ROSTER_STATUSES = new Set(['active','substitute','trial','former','inactive']);
 const JOURNEY_CATEGORIES = new Set(['formation','roster','recruitment','role','practice','roadmap','scrim','achievement']);
 const MATCH_TYPES = new Set(['solo','squad','practice','scrim']);
+const MATCH_STATUSES = new Set(['scheduled','completed','cancelled']);
 
 function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -84,6 +85,9 @@ export function validateWrite(table, payload) {
     if (!payload.match_date || typeof payload.match_date !== 'string') return { ok: false, error: 'match_date required' };
     if (payload.match_type && !MATCH_TYPES.has(payload.match_type)) {
       return { ok: false, error: `Invalid match_type: ${payload.match_type}` };
+    }
+    if (payload.status && !MATCH_STATUSES.has(payload.status)) {
+      return { ok: false, error: `Invalid match status: ${payload.status}` };
     }
     if (payload.roster !== undefined && !isArrayOfStrings(payload.roster)) {
       return { ok: false, error: 'roster must be an array of strings' };
