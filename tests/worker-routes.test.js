@@ -167,6 +167,15 @@ console.log('/delete:');
   ok('archived flag set to true', row && row[4] === 'true');
 }
 {
+  // Valid player delete — soft-archives the player row.
+  const r = await run('/write', 'test-token', { table: 'players', payload: { ign: 'DELP1', roster_status: 'active', is_public: true } });
+  const id = r.json.id;
+  const r2 = await run('/delete', 'test-token', { table: 'players', payload: { id } });
+  ok('valid player delete → 200', r2.status === 200 && r2.json.ok === true);
+  const row = sheets.players.find(rr => rr[0] === id);
+  ok('player archived flag set to true', row && row[12] === 'true');
+}
+{
   const r = await run('/delete', 'test-token', { table: 'players', payload: { id: 'nope' } });
   ok('unknown id → 400', r.status === 400 && r.json.error.includes('not found'));
 }

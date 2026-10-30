@@ -7,11 +7,11 @@
 import { api } from '../js/api.js';
 
 const csvs = {
-  players: 'id,ign,primary_role,secondary_roles,temporary_roles,previous_roles,roster_status\n1,TQG.KAIZEN07,,"[""Sniper""]","[""Sniper"",""IGL""]","[""Sniper""]",active\n2,TQG.SCOP07,Sniper,[],[],[],active\n',
-  recruitment: 'id,ign,target_role,trial_status,trial_date,decision\n3,ASTROO !!!,Supporter,trial,,pending\n',
+  players: 'id,ign,primary_role,secondary_roles,temporary_roles,previous_roles,roster_status,archived\n1,TQG.KAIZEN07,,"[""Sniper""]","[""Sniper"",""IGL""]","[""Sniper""]",active,\n2,TQG.SCOP07,Sniper,[],[],[],active,\n8,TQG.GONE,Sniper,[],[],[],former,true\n',
+  recruitment: 'id,ign,target_role,trial_status,trial_date,decision,archived\n3,ASTROO !!!,Supporter,trial,,pending,\n9,OLD.KIT,Supporter,former,,rejected,true\n',
   announcements: 'id,title,body,published_at,archived\n4,Hi,Hello,2026-10-01,false\n5,Old,Gone,2026-09-01,true\n',
-  matches: 'id,match_date,match_type,roster,placement,kills\n6,2026-11-01,scrim,"[""Jay"",""Aman""]",3,7\n',
-  journey: 'id,date,date_provisional,category,title,description,verified\n7,2026-10-20,true,formation,Team formed,Provisional,false\n',
+  matches: 'id,match_date,match_type,roster,placement,kills,archived\n6,2026-11-01,scrim,"[""Jay"",""Aman""]",3,7,\n10,2026-09-01,squad,[],8,2,true\n',
+  journey: 'id,date,date_provisional,category,title,description,verified,archived\n7,2026-10-20,true,formation,Team formed,Provisional,false,\n11,2026-09-01,false,scrim,Old scrim,Gone,true,true\n',
 };
 globalThis.fetch = async (url) => {
   const m = /sheet=(.*)$/.exec(url);
@@ -40,6 +40,18 @@ eq('IGN exact', players[0].ign, 'TQG.KAIZEN07');
 
 console.log('api.recruitment:');
 eq('recruitment parsed', (await api.recruitment())[0].ign, 'ASTROO !!!');
+
+console.log('api.players (soft-delete filter):');
+eq('archived player filtered out', (await api.players()).length, 2);
+
+console.log('api.recruitment (soft-delete filter):');
+eq('archived recruitment filtered out', (await api.recruitment()).length, 1);
+
+console.log('api.matches (soft-delete filter):');
+eq('archived match filtered out', (await api.matches()).length, 1);
+
+console.log('api.journey (soft-delete filter):');
+eq('archived journey filtered out', (await api.journey()).length, 1);
 
 console.log('api.announcements (soft-delete filter):');
 const anns = await api.announcements();
