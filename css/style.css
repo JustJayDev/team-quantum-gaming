@@ -96,6 +96,23 @@ th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute
 tr:last-child td{border-bottom:0}
 tbody tr{transition:background .18s var(--ease)}
 tbody tr:hover{background:var(--card-2)}
+/* Journey timeline */
+.timeline{display:grid;gap:0}
+.timeline-item{display:grid;grid-template-columns:28px 1fr;gap:16px;padding-bottom:28px;position:relative}
+.timeline-item:last-child{padding-bottom:0}
+.tl-rail{position:relative;display:flex;justify-content:center}
+.tl-rail::before{content:"";position:absolute;top:6px;bottom:-10px;width:2px;background:var(--line-2)}
+.timeline-item:last-child .tl-rail::before{display:none}
+.tl-dot{width:12px;height:12px;border-radius:50%;background:var(--lime);border:3px solid var(--bg);box-shadow:0 0 0 2px var(--lime);margin-top:4px;flex:none}
+.tl-body{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px}
+.tl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.tl-cat{font-family:var(--font-m);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan)}
+.tl-badge{font-size:11.5px;padding:3px 9px}
+.tl-body h3{font-size:16px;font-weight:700;letter-spacing:-.01em;margin-bottom:6px}
+.tl-desc{font-size:14px;color:var(--fg-2);margin-bottom:10px}
+.tl-meta{font-size:13px;color:var(--muted)}
+.tl-date{align-items:center;gap:6px}
+
 /* Player profile cards */
 .player-card .p-display{color:var(--muted);font-size:13px;margin-top:2px}
 .player-card .p-roles{margin-top:10px;font-size:14px;color:var(--fg-2);display:flex;gap:8px;align-items:baseline}
