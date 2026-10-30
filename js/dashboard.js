@@ -4,6 +4,7 @@
 // Never displays anything not served by a *_public view.
 // ============================================================
 import { api, overallProgress, phaseProgress, fmtDate } from './api.js';
+import { profileCard } from './player.js';
 
 const $ = s => document.querySelector(s);
 
@@ -71,15 +72,7 @@ async function init() {
   if (!players.length) {
     rg.innerHTML = '<div class="card empty"><div class="big">👥</div><h4>No roster yet</h4><p>Players will appear here when added.</p></div>';
   } else {
-    rg.innerHTML = players.map(p => `
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-          <h3>${escapeHtml(p.ign)}</h3>
-          <span class="pill ${pillClass(p.roster_status)}">${escapeHtml(p.roster_status)}</span>
-        </div>
-        <p style="color:var(--muted);font-size:14px;margin-bottom:8px">${escapeHtml(p.role_primary || '')}${p.role_secondary ? ' / ' + escapeHtml(p.role_secondary) : ''}</p>
-        ${p.join_date ? `<p style="color:var(--muted);font-size:13px">Joined ${fmtDate(p.join_date)}</p>` : ''}
-      </div>`).join('');
+    rg.innerHTML = players.map(profileCard).join('');
   }
 
   // Announcements
