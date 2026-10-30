@@ -58,29 +58,35 @@ async function call(path, table, payload) {
   return r.json();
 }
 function bind(btnId, handler) {
-  $(btnId).addEventListener('click', async () => {
+  const el = $(btnId);
+  if (!el) { console.warn('admin: missing element #' + btnId); return; }
+  el.addEventListener('click', async () => {
     try { await handler(); } catch (e) { toast(e.message, true); }
   });
 }
 
 // --- Roster ---
+function csvList(id) {
+  return $(id).value.split(',').map(s => s.trim()).filter(Boolean);
+}
 bind('addPlayer', async () => {
   const ign = $('p_ign').value.trim();
   if (!ign) { toast('IGN is required', true); return; }
   await call(WORKER_PATH_WRITE, 'players', {
     ign,
-    display_name: '',
+    display_name: $('p_display').value.trim() || '',
     primary_role: $('p_role').value || null,
-    secondary_roles: [],
-    temporary_roles: [],
+    secondary_roles: csvList('p_secondary'),
+    temporary_roles: csvList('p_temp'),
     roster_status: $('p_status').value,
-    join_date: '',
-    previous_roles: [],
-    achievements: [],
+    join_date: $('p_join').value || '',
+    previous_roles: csvList('p_prev'),
+    achievements: csvList('p_achv'),
     avatar_url: '',
     is_public: true,
   });
-  $('p_ign').value = ''; toast('Player added');
+  ['p_ign','p_display','p_role','p_secondary','p_temp','p_prev','p_achv','p_join'].forEach(id => $(id).value = '');
+  toast('Player added');
 });
 
 // --- Announcements ---

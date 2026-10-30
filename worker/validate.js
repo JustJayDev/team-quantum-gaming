@@ -6,7 +6,7 @@
 // ============================================================
 
 // Table -> public sheet tab (worker writes only to these).
-const TABLE_TO_TAB = {
+export const TABLE_TO_TAB = {
   players: 'players',
   announcements: 'announcements',
   matches: 'matches',
@@ -115,4 +115,4 @@ export function validateWrite(table, payload) {
   return { ok: true, table, tab: TABLE_TO_TAB[table], cols, payload, privateFields: {} };
 }
 
-export { TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB, TABLE_TO_TAB };
+export { TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB };

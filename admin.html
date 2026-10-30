@@ -63,11 +63,17 @@
         <div class="card">
           <h3>Roster</h3>
           <div class="field"><label for="p_ign">IGN</label><input id="p_ign"></div>
-          <div class="field"><label for="p_role">Role</label>
-            <select id="p_role"><option>IGL</option><option>Rusher</option><option>Supporter</option><option>Sniper</option><option>Fragger</option></select>
+          <div class="field"><label for="p_display">Display name</label><input id="p_display"></div>
+          <div class="field"><label for="p_role">Primary role</label>
+            <select id="p_role"><option value="">— none —</option><option>IGL</option><option>Rusher</option><option>Supporter</option><option>Sniper</option><option>Fragger</option><option>Secondary</option></select>
           </div>
+          <div class="field"><label for="p_secondary">Secondary roles (comma-separated)</label><input id="p_secondary" placeholder="Sniper, IGL"></div>
+          <div class="field"><label for="p_temp">Temporary roles (comma-separated)</label><input id="p_temp" placeholder="Sniper"></div>
+          <div class="field"><label for="p_prev">Previous roles (comma-separated)</label><input id="p_prev" placeholder="Rusher"></div>
+          <div class="field"><label for="p_achv">Achievements (comma-separated)</label><input id="p_achv" placeholder="MVP, Top 5"></div>
+          <div class="field"><label for="p_join">Join date</label><input id="p_join" type="date"></div>
           <div class="field"><label for="p_status">Status</label>
-            <select id="p_status"><option value="active">Active</option><option value="substitute">Substitute</option><option value="trial">Trial</option><option value="inactive">Inactive</option></select>
+            <select id="p_status"><option value="active">Active</option><option value="substitute">Substitute</option><option value="trial">Trial</option><option value="former">Former</option><option value="inactive">Inactive</option></select>
           </div>
           <button class="btn" id="addPlayer">Add player</button>
         </div>
@@ -100,6 +106,14 @@
           <div class="field"><label for="r_notes">Evaluation notes</label><textarea id="r_notes" rows="3"></textarea></div>
           <button class="btn" id="addRec">Add candidate</button>
         </div>
+      </div>
+
+      <div class="card" style="margin-top:20px">
+        <h3>Soft-delete (archive)</h3>
+        <div class="field"><label for="del_player_id">Player id to archive</label><input id="del_player_id" placeholder="ab12cd34"></div>
+        <button class="btn ghost" id="deletePlayer">Archive player</button>
+        <div class="field" style="margin-top:16px"><label for="del_ann_id">Announcement id to archive</label><input id="del_ann_id" placeholder="ef56gh78"></div>
+        <button class="btn ghost" id="deleteAnn">Archive announcement</button>
       </div>
     </div>
   </section>

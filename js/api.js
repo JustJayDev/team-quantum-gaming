@@ -65,11 +65,18 @@ function toArray(v) {
     return [];
   }
 }
+// A record is "active" if it has no archived column or archived is not truthy.
+// This keeps pre-archival records working.
+function isPublic(row) {
+  return !('archived' in row) || !toBool(row.archived);
+}
 
-// Public reads — each returns an array of plain objects.
+// Public reads — each returns an array of plain objects. Soft-deleted
+// (archived) records are excluded consistently. Records without an
+// archived column are always included.
 export const api = {
   settings: () => get(SHEET_TABS.settings),
-  players: () => get(SHEET_TABS.players).then(rows => rows.map(p => ({
+  players: () => get(SHEET_TABS.players).then(rows => rows.filter(isPublic).map(p => ({
     ...p,
     primary_role: p.primary_role || null,
     secondary_roles: toArray(p.secondary_roles),
@@ -77,20 +84,20 @@ export const api = {
     previous_roles: toArray(p.previous_roles),
     achievements: toArray(p.achievements),
   }))),
-  phases: () => get(SHEET_TABS.phases),
-  tasks: () => get(SHEET_TABS.tasks).then(rows => rows.map(t => ({ ...t, done: toBool(t.done) }))),
-  practice: () => get(SHEET_TABS.practice),
-  journey: () => get(SHEET_TABS.journey).then(rows => rows.map(j => ({
+  phases: () => get(SHEET_TABS.phases).then(rows => rows.filter(isPublic)),
+  tasks: () => get(SHEET_TABS.tasks).then(rows => rows.filter(isPublic).map(t => ({ ...t, done: toBool(t.done) }))),
+  practice: () => get(SHEET_TABS.practice).then(rows => rows.filter(isPublic)),
+  journey: () => get(SHEET_TABS.journey).then(rows => rows.filter(isPublic).map(j => ({
     ...j,
     date_provisional: toBool(j.date_provisional),
     verified: toBool(j.verified),
   }))),
-  matches: () => get(SHEET_TABS.matches).then(rows => rows.map(m => ({
+  matches: () => get(SHEET_TABS.matches).then(rows => rows.filter(isPublic).map(m => ({
     ...m,
     roster: toArray(m.roster),
   }))),
-  announcements: () => get(SHEET_TABS.announcements).then(rows => rows.filter(a => !toBool(a.archived))),
-  recruitment: () => get(SHEET_TABS.recruitment),
+  announcements: () => get(SHEET_TABS.announcements).then(rows => rows.filter(isPublic)),
+  recruitment: () => get(SHEET_TABS.recruitment).then(rows => rows.filter(isPublic)),
 };
 
 // Progress calc: completed tasks / total tasks

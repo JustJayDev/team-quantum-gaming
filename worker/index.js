@@ -9,7 +9,7 @@
 //   SPREADSHEET_ID  — the Google Sheet id (same as SHEET_ID)
 //   SERVICE_ACCOUNT — full JSON of a Google service account that is
 //                      a viewer/editor on the sheet (escaped, env)
-import { validateWrite, TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB } from './validate.js';
+import { validateWrite, TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB, TABLE_TO_TAB } from './validate.js';
 
 // Lightweight Google OAuth2 JWT (RS256) using Web Crypto.
 async function googleAccessToken(sa) {
@@ -99,11 +99,13 @@ export default {
     const { table, payload } = body || {};
 
     // ---- DELETE (soft-delete by id) ----
+    // Delete only needs (table, id) — it must NOT run full write
+    // validation (a payload for a create requires title/body etc.,
+    // which is irrelevant to archiving an existing row).
     if (url.pathname === '/delete') {
-      const v = validateWrite(table, payload);
-      if (!v.ok) return badRequest(v.error);
+      const tab = TABLE_TO_TAB[table];
+      if (!tab) return badRequest('Unknown table');
       if (!payload.id || typeof payload.id !== 'string') return badRequest('id required');
-      const tab = v.tab;
       try {
         const rows = await readTab(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab);
         const headers = rows[0] || [];
