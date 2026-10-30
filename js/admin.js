@@ -1,11 +1,10 @@
 // ============================================================
 // TQG — admin console (Google Sheets + Cloudflare Worker)
-// Writes POST to the Worker at WORKER_URL/write with the admin
-// token in the Authorization header. The Worker validates the
-// token against its env secret and appends to the sheet.
+// Writes/updates/deletes go through the Worker, which validates
+// the admin token on every request and whitelists fields.
 // No write secret lives in this file or any frontend code.
 // ============================================================
-import { WORKER_URL, WORKER_PATH } from './config.js';
+import { WORKER_URL, WORKER_PATH_WRITE, WORKER_PATH_UPDATE, WORKER_PATH_DELETE } from './config.js';
 
 const $ = id => document.getElementById(id);
 const authGate = $('authGate'), consoleSection = $('console');
@@ -28,7 +27,7 @@ function setAuthed(on) {
 }
 
 // --- Auth: capture the admin token. The real gate is the Worker,
-// which rejects bad tokens on write. This UI gate is just cosmetic.
+// which rejects bad tokens on every request. This UI gate is cosmetic.
 $('loginBtn').addEventListener('click', () => {
   const t = $('tokenInput').value.trim();
   if (!t) { $('authErr').textContent = 'Token required'; $('authErr').style.display = ''; return; }
@@ -45,8 +44,8 @@ $('logoutBtn').addEventListener('click', () => {
   toast('Signed out');
 });
 
-async function write(table, payload) {
-  const r = await fetch(WORKER_URL + WORKER_PATH, {
+async function call(path, table, payload) {
+  const r = await fetch(WORKER_URL + path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify({ table, payload }),
@@ -54,7 +53,7 @@ async function write(table, payload) {
   if (!r.ok) {
     let msg = r.status;
     try { const j = await r.json(); msg = j.error || msg; } catch {}
-    throw new Error(`Write rejected (${r.status}): ${msg}`);
+    throw new Error(`${path} rejected (${r.status}): ${msg}`);
   }
   return r.json();
 }
@@ -64,45 +63,77 @@ function bind(btnId, handler) {
   });
 }
 
+// --- Roster ---
 bind('addPlayer', async () => {
   const ign = $('p_ign').value.trim();
   if (!ign) { toast('IGN is required', true); return; }
-  await write('players', {
-    ign, display_name: '', role_primary: $('p_role').value, role_secondary: '',
-    roster_status: $('p_status').value, join_date: '', avatar_url: '', is_public: true,
+  await call(WORKER_PATH_WRITE, 'players', {
+    ign,
+    display_name: '',
+    primary_role: $('p_role').value || null,
+    secondary_roles: [],
+    temporary_roles: [],
+    roster_status: $('p_status').value,
+    join_date: '',
+    previous_roles: [],
+    achievements: [],
+    avatar_url: '',
+    is_public: true,
   });
   $('p_ign').value = ''; toast('Player added');
 });
+
+// --- Announcements ---
 bind('addAnn', async () => {
   const title = $('a_title').value.trim(), body = $('a_body').value.trim();
   if (!title || !body) { toast('Title and body required', true); return; }
-  await write('announcements', { title, body, published_at: new Date().toISOString(), archived: false });
+  await call(WORKER_PATH_WRITE, 'announcements', { title, body, published_at: new Date().toISOString(), archived: false });
   $('a_title').value = ''; $('a_body').value = ''; toast('Announcement published');
 });
+
+// --- Matches ---
 bind('addMatch', async () => {
   const date = $('m_date').value, type = $('m_type').value;
   if (!date) { toast('Date required', true); return; }
-  await write('matches', {
+  await call(WORKER_PATH_WRITE, 'matches', {
     match_date: date, match_type: type,
     opponent: $('m_opponent').value.trim() || '',
     placement: $('m_placement').value ? +$('m_placement').value : '',
     kills: $('m_kills').value ? +$('m_kills').value : '',
-    roster: '[]', points: '', notes: '', replay_url: '', is_public: true,
+    roster: [],
+    points: '', notes: '', replay_url: '', is_public: true,
   });
   ['m_date','m_opponent','m_placement','m_kills'].forEach(id => $(id).value = '');
   toast('Match recorded');
 });
+
+// --- Recruitment (private fields routed by the Worker) ---
 bind('addRec', async () => {
   const ign = $('r_ign').value.trim();
   if (!ign) { toast('IGN required', true); return; }
-  await write('recruitment', {
+  await call(WORKER_PATH_WRITE, 'recruitment', {
     ign, target_role: $('r_role').value,
     trial_status: 'pending', trial_date: '', decision: 'pending',
-    // Private fields are sent to the Worker but must NEVER be part of
-    // the published public sheet. The Worker stores them separately.
-    eval_notes: $('r_notes').value.trim(), is_public: false,
+    // Private fields: never published. The Worker writes them only to
+    // the private tab (recruitment_private).
+    eval_notes: $('r_notes').value.trim(),
+    is_public: false,
   });
   $('r_ign').value = ''; $('r_notes').value = ''; toast('Candidate added');
+});
+
+// --- Soft-delete examples (roster/announcements) ---
+bind('deletePlayer', async () => {
+  const id = $('del_player_id').value.trim();
+  if (!id) { toast('Player id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'players', { id });
+  $('del_player_id').value = ''; toast('Player archived');
+});
+bind('deleteAnn', async () => {
+  const id = $('del_ann_id').value.trim();
+  if (!id) { toast('Announcement id required', true); return; }
+  await call(WORKER_PATH_DELETE, 'announcements', { id });
+  $('del_ann_id').value = ''; toast('Announcement archived');
 });
 
 // Restore session on load

@@ -1,32 +1,15 @@
 // ============================================================
-// TQG — Cloudflare Worker (admin writes)
-// Validates the admin token, then appends a row to a Google Sheet
-// via the Sheets API. The token and a service account credential
-// live ONLY as Worker env secrets — never ship them in the repo.
+// TQG — Cloudflare Worker (admin writes/updates/deletes)
+// Validates the admin token on every request, then performs the
+// Sheets API call. Public tabs are whitelisted in worker/validate.js;
+// private recruitment fields never touch the public sheet.
 // ============================================================
 // Required env vars (set in the Worker dashboard, encrypted):
-//   ADMIN_TOKEN    — the token the admin types at sign-in
-//   SPREADSHEET_ID — the Google Sheet id (same as SHEET_ID)
+//   ADMIN_TOKEN      — the token the admin types at sign-in
+//   SPREADSHEET_ID  — the Google Sheet id (same as SHEET_ID)
 //   SERVICE_ACCOUNT — full JSON of a Google service account that is
-//                     a viewer/editor on the sheet (escaped, env)
-const TABLE_TO_TAB = {
-  players: 'players',
-  announcements: 'announcements',
-  matches: 'matches',
-  recruitment: 'recruitment',
-};
-
-// Row columns per tab (must match the published sheet headers exactly).
-const TAB_COLUMNS = {
-  players:        ['id','ign','display_name','role_primary','role_secondary','roster_status','join_date','avatar_url','is_public'],
-  announcements:   ['id','title','body','published_at','archived'],
-  matches:         ['id','match_date','match_type','opponent','roster','placement','kills','points','notes','replay_url','is_public'],
-  recruitment:     ['id','ign','target_role','trial_status','trial_date','decision','is_public'],
-};
-// Private tab used ONLY for recruitment evaluation notes. This tab is
-// never published to the web, so it can never leak to the public.
-const PRIVATE_TAB = 'recruitment_private';
-const PRIVATE_COLUMNS = ['id', 'ign', 'eval_notes', 'practice_attendance', 'teamwork_assessment'];
+//                      a viewer/editor on the sheet (escaped, env)
+import { validateWrite, TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB } from './validate.js';
 
 // Lightweight Google OAuth2 JWT (RS256) using Web Crypto.
 async function googleAccessToken(sa) {
@@ -60,7 +43,18 @@ function b64FromBytes(bytes) {
   return btoa(s);
 }
 
-// Append a row to the tab using the Sheets API (values:append).
+// Read a tab's values (headers + rows).
+async function readTab(sa, sheetId, tab) {
+  const token = await googleAccessToken(sa);
+  const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab)}!A1:Z1000`, {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (!r.ok) throw new Error('read failed ' + r.status);
+  const d = await r.json();
+  return d.values || [];
+}
+
+// Append a row to a tab.
 async function appendRow(sa, sheetId, tab, values) {
   const token = await googleAccessToken(sa);
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${encodeURIComponent(tab)}!A1:append?valueInputOption=USER_ENTERED`;
@@ -73,51 +67,145 @@ async function appendRow(sa, sheetId, tab, values) {
   return r.json();
 }
 
+// Update a row by its 1-based index (row 1 = headers).
+async function updateRow(sa, sheetId, tab, rowIndex, values) {
+  const token = await googleAccessToken(sa);
+  const col = String.fromCharCode(64 + values.length);
+  const range = `${encodeURIComponent(tab)}!A${rowIndex}:${col}${rowIndex}`;
+  const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/${range}?valueInputOption=USER_ENTERED`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ range, majorDimension: 'ROWS', values: [values] }),
+  });
+  if (!r.ok) throw new Error('update failed ' + r.status);
+  return r.json();
+}
+
+function json(res, status, obj) {
+  return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+}
+function badRequest(msg) { return json(null, 400, { error: msg }); }
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
-    if (request.method !== 'POST' || url.pathname !== '/write') {
-      return new Response('Not found', { status: 404 });
-    }
-    // 1. Token check.
     const auth = request.headers.get('Authorization') || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
     if (token !== env.ADMIN_TOKEN) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      return json(null, 401, { error: 'Unauthorized' });
     }
-    // 2. Parse + validate body.
     let body;
-    try { body = await request.json(); } catch { return new Response(JSON.stringify({ error: 'Bad JSON' }), { status: 400, headers: { 'Content-Type': 'application/json' } }); }
+    try { body = await request.json(); } catch { return badRequest('Bad JSON'); }
     const { table, payload } = body || {};
-    const tab = TABLE_TO_TAB[table];
-    const cols = TAB_COLUMNS[table];
-    if (!tab || !cols || !payload || typeof payload !== 'object') {
-      return new Response(JSON.stringify({ error: 'Unknown table' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-    }
-    // 4. Append to the public tab.
-    let id = Math.random().toString(36).slice(2, 10);
-    const row = cols.map(c => { if (c === 'id') return id; const v = payload[c]; return v === undefined || v === null ? '' : v; });
 
-    // 5. For recruitment, also store private evaluation fields in the
-    //    separate never-published tab.
-    if (table === 'recruitment') {
-      const privateRow = PRIVATE_COLUMNS.map(c => {
-        if (c === 'id') return id;
-        if (c === 'ign') return payload.ign || '';
-        const v = payload[c];
-        return v === undefined || v === null ? '' : v;
-      });
+    // ---- DELETE (soft-delete by id) ----
+    if (url.pathname === '/delete') {
+      const v = validateWrite(table, payload);
+      if (!v.ok) return badRequest(v.error);
+      if (!payload.id || typeof payload.id !== 'string') return badRequest('id required');
+      const tab = v.tab;
       try {
-        await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB, privateRow);
+        const rows = await readTab(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab);
+        const headers = rows[0] || [];
+        const idIdx = headers.indexOf('id');
+        if (idIdx < 0) return badRequest('tab has no id column');
+        const archivedIdx = headers.indexOf('archived');
+        let found = -1;
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i][idIdx] === payload.id) { found = i + 1; break; }
+        }
+        if (found < 0) return badRequest('id not found');
+        // Soft-delete: set `archived` = true if the column exists.
+        if (archivedIdx >= 0) {
+          const vals = rows[found - 1];
+          vals[archivedIdx] = 'true';
+          await updateRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab, found, vals);
+        } else {
+          return badRequest('tab does not support soft-delete (no archived column)');
+        }
+        return json(null, 200, { ok: true, id: payload.id });
       } catch (e) {
-        return new Response(JSON.stringify({ error: 'private sheet write failed: ' + e.message }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+        return json(null, 502, { error: 'delete failed: ' + e.message });
       }
     }
-    try {
-      await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab, row);
-    } catch (e) {
-      return new Response(JSON.stringify({ error: 'sheet write failed: ' + e.message }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+
+    // ---- UPDATE (by id) ----
+    if (url.pathname === '/update') {
+      const v = validateWrite(table, payload);
+      if (!v.ok) return badRequest(v.error);
+      if (!payload.id || typeof payload.id !== 'string') return badRequest('id required');
+      const tab = v.tab;
+      try {
+        const rows = await readTab(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab);
+        const headers = rows[0] || [];
+        const idIdx = headers.indexOf('id');
+        if (idIdx < 0) return badRequest('tab has no id column');
+        let found = -1;
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i][idIdx] === payload.id) { found = i + 1; break; }
+        }
+        if (found < 0) return badRequest('id not found');
+        // Build the updated row from current values, applying only non-id fields.
+        const current = rows[found - 1];
+        const updated = headers.map((h, idx) => {
+          if (h === 'id') return current[idx] ?? payload.id;
+          if (payload[h] !== undefined) {
+            return Array.isArray(payload[h]) ? JSON.stringify(payload[h]) : payload[h];
+          }
+          return current[idx] ?? '';
+        });
+        await updateRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, tab, found, updated);
+        // If recruitment update changed private fields, update private tab too.
+        if (table === 'recruitment' && Object.keys(v.privateFields).length) {
+          const pRows = await readTab(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB);
+          const pH = pRows[0] || [];
+          const pIdIdx = pH.indexOf('id');
+          let pFound = -1;
+          for (let i = 1; i < pRows.length; i++) {
+            if (pRows[i][pIdIdx] === payload.id) { pFound = i + 1; break; }
+          }
+          if (pFound > 0) {
+            const pCur = pRows[pFound - 1];
+            const pUpdated = pH.map((h, idx) => {
+              if (h === 'id') return pCur[idx] ?? payload.id;
+              if (v.privateFields[h] !== undefined) return v.privateFields[h];
+              return pCur[idx] ?? '';
+            });
+            await updateRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB, pFound, pUpdated);
+          } else {
+            await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB,
+              PRIVATE_COLUMNS.map(c => c === 'id' ? payload.id : (v.privateFields[c] ?? '')));
+          }
+        }
+        return json(null, 200, { ok: true, id: payload.id });
+      } catch (e) {
+        return json(null, 502, { error: 'update failed: ' + e.message });
+      }
     }
-    return new Response(JSON.stringify({ ok: true, id }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    // ---- WRITE (create) ----
+    if (url.pathname === '/write') {
+      const v = validateWrite(table, payload);
+      if (!v.ok) return badRequest(v.error);
+      const id = Math.random().toString(36).slice(2, 10);
+      const row = v.cols.map(c => {
+        if (c === 'id') return id;
+        const val = v.payload[c];
+        if (val === undefined || val === null) return '';
+        return Array.isArray(val) ? JSON.stringify(val) : val;
+      });
+      try {
+        await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, v.tab, row);
+        if (table === 'recruitment' && Object.keys(v.privateFields).length) {
+          await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, PRIVATE_TAB,
+            PRIVATE_COLUMNS.map(c => c === 'id' ? id : (v.privateFields[c] ?? '')));
+        }
+      } catch (e) {
+        return json(null, 502, { error: 'write failed: ' + e.message });
+      }
+      return json(null, 200, { ok: true, id });
+    }
+
+    return json(null, 404, { error: 'Not found' });
   },
 };

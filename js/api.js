@@ -1,7 +1,7 @@
 // ============================================================
 // TQG — data layer (Google Sheets published CSV)
 // Public reads fetch each tab's CSV from the published sheet
-// (gviz/tq endpoint, no auth). Column headers are the row 1.
+// (gviz/tq endpoint, no auth). Column headers are row 1.
 // Writes go through the Cloudflare Worker (see js/admin.js).
 // ============================================================
 import { SHEET_ID, SHEET_TABS } from './config.js';
@@ -50,23 +50,46 @@ async function get(tab) {
   return parseCSV(await r.text());
 }
 
-// Coerce boolean "true"/"1" to boolean for the `done` flag.
+// Coerce boolean "true"/"1" to boolean.
 function toBool(v) {
   return v === true || v === 'true' || v === '1';
+}
+// Parse a JSON-array cell safely. Returns [] on empty or malformed.
+function toArray(v) {
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  try {
+    const p = JSON.parse(v);
+    return Array.isArray(p) ? p : [];
+  } catch {
+    return [];
+  }
 }
 
 // Public reads — each returns an array of plain objects.
 export const api = {
   settings: () => get(SHEET_TABS.settings),
-  players: () => get(SHEET_TABS.players),
+  players: () => get(SHEET_TABS.players).then(rows => rows.map(p => ({
+    ...p,
+    primary_role: p.primary_role || null,
+    secondary_roles: toArray(p.secondary_roles),
+    temporary_roles: toArray(p.temporary_roles),
+    previous_roles: toArray(p.previous_roles),
+    achievements: toArray(p.achievements),
+  }))),
   phases: () => get(SHEET_TABS.phases),
   tasks: () => get(SHEET_TABS.tasks).then(rows => rows.map(t => ({ ...t, done: toBool(t.done) }))),
   practice: () => get(SHEET_TABS.practice),
+  journey: () => get(SHEET_TABS.journey).then(rows => rows.map(j => ({
+    ...j,
+    date_provisional: toBool(j.date_provisional),
+    verified: toBool(j.verified),
+  }))),
   matches: () => get(SHEET_TABS.matches).then(rows => rows.map(m => ({
     ...m,
-    roster: m.roster ? (() => { try { return JSON.parse(m.roster); } catch { return m.roster; } })() : [],
+    roster: toArray(m.roster),
   }))),
-  announcements: () => get(SHEET_TABS.announcements),
+  announcements: () => get(SHEET_TABS.announcements).then(rows => rows.filter(a => !toBool(a.archived))),
   recruitment: () => get(SHEET_TABS.recruitment),
 };
 
