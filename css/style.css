@@ -127,6 +127,10 @@ tbody tr:hover{background:var(--card-2)}
 .empty{text-align:center;padding:36px 20px;color:var(--muted)}
 .empty .big{font-size:34px;margin-bottom:8px}
 .empty h4{color:var(--fg);margin-bottom:6px}
+/* Honeypot: positioned off-screen so humans never see or focus it */
+.hp{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+.apply-success{border:1px solid rgba(198,255,61,.35);background:var(--card-2);border-radius:var(--r);padding:20px;margin-top:4px}
+.backend-note{font-size:13px;color:var(--muted);margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
 /* Footer */
 footer{border-top:1px solid var(--line);padding:40px 0;color:var(--muted);font-size:14px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between}

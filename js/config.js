@@ -34,6 +34,7 @@ export const JOURNEY_CATEGORIES = [
 ];
 // Admin write endpoints on the Worker.
 export const WORKER_URL = "https://tqg-admin.YOUR_SUBDOMAIN.workers.dev"; // TODO(owner)
-export const WORKER_PATH_WRITE = "/write";   // create
-export const WORKER_PATH_UPDATE = "/update";  // update by id
-export const WORKER_PATH_DELETE = "/delete";  // soft-delete by id
+export const WORKER_PATH_WRITE = "/write";   // create (admin)
+export const WORKER_PATH_UPDATE = "/update";  // update by id (admin)
+export const WORKER_PATH_DELETE = "/delete";  // soft-delete by id (admin)
+export const WORKER_PATH_APPLY = "/apply";    // public candidate application (no token)

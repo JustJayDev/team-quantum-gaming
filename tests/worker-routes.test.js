@@ -94,6 +94,18 @@ function makeReq(path, token, body) {
   });
 }
 
+// Helper: build a request with a specific client IP (for /apply rate-limit tests).
+function makeApplyReq(path, ips, payload) {
+  return new Request('https://tqg-admin.test.workers.dev' + path, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'CF-Connecting-IP': ips,
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 async function run(path, token, body) {
   const res = await worker.fetch(makeReq(path, token, body), ENV);
   let j = null;
@@ -254,6 +266,42 @@ console.log('/delete recruitment private archive:');
   ok('recruitment delete without private row → 200', r2.status === 200 && r2.json.ok === true);
   const pubRow = sheets.recruitment.find(rr => rr[0] === id);
   ok('public row still archived', pubRow && pubRow[7] === 'true');
+}
+
+console.log('/apply (public, no token):');
+{
+  const r = await worker.fetch(makeApplyReq('/apply', '1.1.1.1', { payload: { ign: 'NEW.PLAYER', target_role: 'Rusher', contact: 'discord@x' } }), ENV);
+  const j = await r.json();
+  ok('valid public apply → 200', r.status === 200 && j.ok === true);
+  const row = sheets.recruitment.find(rr => rr[0] === j.id);
+  ok('apply appended recruitment row', row && row[1] === 'NEW.PLAYER');
+  ok('apply sets trial_status pending', row && row[3] === 'pending');
+  ok('apply sets is_public false', row && row[6] === 'false');
+  ok('apply does not expose contact publicly', row && row.indexOf('discord@x') === -1);
+}
+{
+  const r = await worker.fetch(makeApplyReq('/apply', '2.2.2.2', { payload: { ign: '', target_role: 'Rusher' } }), ENV);
+  ok('apply missing ign → 400', r.status === 400);
+}
+{
+  const r = await worker.fetch(makeApplyReq('/apply', '3.3.3.3', { payload: { ign: 'X', target_role: 'NotARole' } }), ENV);
+  const j = await r.json();
+  ok('apply invalid role → 400', r.status === 400 && j.error.includes('Invalid target role'));
+}
+{
+  const r = await worker.fetch(makeApplyReq('/apply', '4.4.4.4', { payload: { ign: 'X', target_role: 'Rusher', website: 'http://spam.example' } }), ENV);
+  const j = await r.json();
+  ok('apply honeypot → accepted but spam (no write)', r.status === 200 && j.spam === true);
+  ok('apply honeypot did not write', !sheets.recruitment.find(rr => rr[1] === 'X'));
+}
+{
+  // Rate limit: 3 per IP per hour.
+  for (let i = 0; i < 3; i++) {
+    const r = await worker.fetch(makeApplyReq('/apply', '5.5.5.5', { payload: { ign: 'RL' + i, target_role: 'Sniper' } }), ENV);
+    ok('apply rate-limit allowed within budget (' + (i + 1) + '/3)', r.status === 200);
+  }
+  const r4 = await worker.fetch(makeApplyReq('/apply', '5.5.5.5', { payload: { ign: 'RL3', target_role: 'Sniper' } }), ENV);
+  ok('apply rate-limit blocks 4th → 429', r4.status === 429);
 }
 
 console.log('route fallthrough:');

@@ -121,4 +121,4 @@ export function validateWrite(table, payload) {
   return { ok: true, table, tab: TABLE_TO_TAB[table], cols, payload, privateFields: {} };
 }
 
-export { TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB };
+export { TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB, ROLES };

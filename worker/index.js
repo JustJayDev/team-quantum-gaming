@@ -9,7 +9,7 @@
 //   SPREADSHEET_ID  — the Google Sheet id (same as SHEET_ID)
 //   SERVICE_ACCOUNT — full JSON of a Google service account that is
 //                      a viewer/editor on the sheet (escaped, env)
-import { validateWrite, TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB, TABLE_TO_TAB } from './validate.js';
+import { validateWrite, TAB_COLUMNS, PRIVATE_COLUMNS, PRIVATE_TAB, TABLE_TO_TAB, ROLES } from './validate.js';
 
 // Lightweight Google OAuth2 JWT (RS256) using Web Crypto.
 async function googleAccessToken(sa) {
@@ -87,10 +87,77 @@ function json(res, status, obj) {
 function badRequest(msg) { return json(null, 400, { error: msg }); }
 
 export default {
+  // Simple in-memory rate limiter for the public /apply route.
+  // Keyed by client IP; bounded and pruned. Not a security boundary —
+  // it is a courtesy throttle. A real deployment should use Cloudflare
+  // rate limiting or a durable store.
+  _applyRate: new Map(),
+
+  _rateLimit(ip) {
+    const now = Date.now();
+    const window = 60 * 60 * 1000; // 1 hour
+    const max = 3;                  // 3 applications / hour / IP
+    const entry = this._applyRate.get(ip) || { times: [] };
+    entry.times = entry.times.filter(t => now - t < window);
+    if (entry.times.length >= max) return true;
+    entry.times.push(now);
+    this._applyRate.set(ip, entry);
+    // Prune stale entries occasionally (at most 1000 slots).
+    if (this._applyRate.size > 1000) {
+      for (const [k, v] of this._applyRate) {
+        v.times = v.times.filter(t => now - t < window);
+        if (!v.times.length) this._applyRate.delete(k);
+      }
+    }
+    return false;
+  },
+
   async fetch(request, env) {
     const url = new URL(request.url);
     const auth = request.headers.get('Authorization') || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+
+    // ---- PUBLIC APPLY (no admin token required) ----
+    // Prospective players submit an application. This route NEVER accepts
+    // private fields and never exposes the candidate until an admin
+    // approves. It is strictly whitelisted, honeypot-protected, and
+    // lightly rate-limited per IP.
+    if (url.pathname === '/apply') {
+      let body;
+      try { body = await request.json(); } catch { return badRequest('Bad JSON'); }
+      const payload = (body && body.payload) || {};
+
+      // Honeypot: a hidden "website" field is not a real field. If a bot
+      // filled it, silently accept without writing (so bots cannot probe).
+      const honeypot = String(payload.website || '').trim();
+      if (honeypot) return json(null, 200, { ok: false, spam: true });
+
+      // Rate limit by client IP (Cloudflare header or fallback).
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      if (this._rateLimit(ip)) return json(null, 429, { error: 'Too many applications — try again later.' });
+
+      // Strict whitelist: only public, non-sensitive fields.
+      const ign = typeof payload.ign === 'string' ? payload.ign.trim() : '';
+      const target_role = typeof payload.target_role === 'string' ? payload.target_role.trim() : '';
+      const contact = typeof payload.contact === 'string' ? payload.contact.trim() : '';
+
+      if (!ign) return badRequest('IGN is required');
+      if (ign.length > 40) return badRequest('IGN is too long');
+      if (/[\x00-\x1f\x7f]/.test(ign)) return badRequest('IGN contains invalid characters');
+      if (!ROLES.has(target_role)) return badRequest('Invalid target role');
+
+      const id = Math.random().toString(36).slice(2, 10);
+      // Recruitment columns: id, ign, target_role, trial_status, trial_date, decision, is_public, archived
+      const row = [id, ign, target_role, 'pending', '', 'pending', 'false', ''];
+      try {
+        await appendRow(env.SERVICE_ACCOUNT, env.SPREADSHEET_ID, 'recruitment', row);
+      } catch (e) {
+        return json(null, 502, { error: 'apply failed: ' + e.message });
+      }
+      return json(null, 200, { ok: true, id, message: 'Application received. We will be in touch.' });
+    }
+
+    // All other routes require the admin token.
     if (token !== env.ADMIN_TOKEN) {
       return json(null, 401, { error: 'Unauthorized' });
     }

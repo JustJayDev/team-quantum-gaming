@@ -42,6 +42,50 @@
       </div>
     </div>
   </section>
+  <section>
+    <div class="wrap">
+      <div class="card" style="max-width:640px;margin:0 auto">
+        <h3>Apply to TQG</h3>
+        <p style="color:var(--fg-2);font-size:14px;margin:0 0 16px">Interested in trying out? Submit your IGN and target role. Applications go straight to the team lead — your details are never shown on the public site.</p>
+        <form id="applyForm" novalidate>
+          <div class="field">
+            <label for="a_ign">In-game name (IGN)</label>
+            <input id="a_ign" name="ign" type="text" maxlength="40" autocomplete="nickname" required>
+            <span class="err" aria-live="polite"></span>
+          </div>
+          <div class="field">
+            <label for="a_role">Target role</label>
+            <select id="a_role" name="target_role" required>
+              <option value="">Select a role…</option>
+              <option value="IGL">IGL</option>
+              <option value="Rusher">Rusher</option>
+              <option value="Supporter">Supporter</option>
+              <option value="Sniper">Sniper</option>
+              <option value="Fragger">Fragger</option>
+              <option value="Secondary">Secondary</option>
+            </select>
+            <span class="err" aria-live="polite"></span>
+          </div>
+          <div class="field">
+            <label for="a_contact">Contact (optional)</label>
+            <input id="a_contact" name="contact" type="text" maxlength="120" autocomplete="off">
+            <span class="err" aria-live="polite"></span>
+          </div>
+          <!-- Honeypot: hidden from humans, catches bots -->
+          <div class="hp" aria-hidden="true">
+            <label for="a_website">Website</label>
+            <input id="a_website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <button class="btn" type="submit" id="applySubmit">Submit application</button>
+        </form>
+        <div id="applySuccess" class="apply-success" hidden>
+          <p><strong>Application received.</strong> The team lead will review it and reach out. You can close this page.</p>
+          <button class="btn ghost" type="button" id="applyAgain">Submit another</button>
+        </div>
+        <p id="applyBackend" class="backend-note" hidden>Application backend is not configured yet — this form is not live.</p>
+      </div>
+    </div>
+  </section>
 </main>
 <footer>
   <div class="wrap">
